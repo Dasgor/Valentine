@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Will you be my valentine?</title>
+  <style>
+    :root{
+      --bg:#ffeef2;
+      --card:#fff;
+      --accent:#ff6b9a;
+      --accent-2:#ff9cc0;
+      --muted:#7a5b6e;
+      --shadow: 0 8px 30px rgba(110,60,90,0.12);
+      font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(circle at 10% 10%, #fff6fb 0%, var(--bg) 40%), linear-gradient(180deg,#fff 0%, #fff3f7 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    .container{
+      width:min(720px,94vw);
+      max-width:720px;
+      background:var(--card);
+      border-radius:18px;
+      padding:36px;
+      box-shadow:var(--shadow);
+      text-align:center;
+      position:relative;
+      overflow:hidden;
+    }
+    h1{
+      margin:0 0 8px 0;
+      font-size:2.1rem;
+      color: #4a2740;
+      letter-spacing:0.6px;
+    }
+    p.lead{
+      margin:0 0 22px 0;
+      color:var(--muted);
+    }
+    .buttons{
+      display:flex;
+      gap:18px;
+      justify-content:center;
+      align-items:center;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    button{
+      cursor:pointer;
+      border:0;
+      padding:14px 28px;
+      border-radius:12px;
+      font-size:1.05rem;
+      font-weight:600;
+      transition:transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s, background .18s;
+      box-shadow: 0 6px 18px rgba(110,60,90,0.08);
+      user-select:none;
+    }
+    button:active{ transform:translateY(2px) scale(.99); }
+    .yes{
+      background:linear-gradient(90deg,var(--accent),var(--accent-2));
+      color:white;
+      min-width:130px;
+      min-height:52px;
+      font-size:1.08rem;
+    }
+    .no{
+      background:transparent;
+      border:2px solid #ffd6e6;
+      color:#a0516d;
+      min-width:130px;
+      min-height:52px;
+    }
+    .hint{
+      margin-top:18px;
+      color:#b07b91;
+      min-height:28px;
+      font-weight:600;
+      letter-spacing:0.2px;
+    }
+    .heart{
+      position:absolute;
+      right:18px;
+      top:18px;
+      font-size:22px;
+      opacity:.95;
+      transform:rotate(-10deg);
+    }
+
+    /* Fireworks overlay */
+    #fireworksCanvas{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:2000;
+    }
+    .overlayMsg{
+      position:fixed;
+      left:50%;
+      top:18%;
+      transform:translateX(-50%);
+      z-index:2100;
+      background:linear-gradient(90deg, rgba(255,255,255,0.92), rgba(255,250,250,0.8));
+      padding:18px 26px;
+      border-radius:12px;
+      box-shadow:0 12px 40px rgba(80,30,60,0.12);
+      font-weight:700;
+      color:#4a2134;
+      display:none;
+      font-size:1.2rem;
+      text-align:center;
+    }
+
+    /* small screens adjustments */
+    @media (max-width:420px){
+      h1{ font-size:1.6rem; }
+      button{ padding:12px 18px; min-width:110px; }
+      .overlayMsg{ top:10%; font-size:1rem; padding:12px 16px; }
+    }
+
+    /* subtle twinkling hearts in background */
+    .bg-hearts{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:0;
+      overflow:hidden;
+    }
+    .bg-hearts span{
+      position:absolute;
+      font-size:18px;
+      opacity:.06;
+      transform:translate3d(0,0,0);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container" role="main" aria-labelledby="qtitle">
+    <div class="heart" aria-hidden="true">💘</div>
+
+    <h1 id="qtitle">Will you be my valentine?</h1>
+    <p class="lead">I promise awesomeness, hugs, and lots of chocolate. Choose wisely 💕</p>
+
+    <div class="buttons" aria-hidden="false">
+      <button class="yes" id="yesBtn" aria-label="Yes, I will be your valentine">Yes</button>
+      <button class="no" id="noBtn" aria-label="No, I'm not sure">No</button>
+    </div>
+
+    <div class="hint" id="hint">Take your time... but not too long 😇</div>
+  </div>
+
+  <div class="overlayMsg" id="overlayMsg" role="dialog" aria-live="polite"></div>
+  <canvas id="fireworksCanvas" width="800" height="600" aria-hidden="true"></canvas>
+
+  <div class="bg-hearts" id="bgHearts" aria-hidden="true"></div>
+
+  <script>
+    // Elements
+    const yesBtn = document.getElementById('yesBtn');
+    const noBtn = document.getElementById('noBtn');
+    const hint = document.getElementById('hint');
+    const overlayMsg = document.getElementById('overlayMsg');
+
+    // Cute messages used to persuade when 'No' is pressed or hovered
+    const messages = [
+      "Aww, don't be shy — imagine us sharing sunsets 🌅",
+      "Please? I'll bring chocolate 🍫 and cheesy jokes 😅",
+      "Think of all the silly selfies we could take 📸",
+      "It'll be fun, I promise! We'll make memories 💫",
+      "Just one 'Yes' and I'll be the happiest person alive 💖",
+      "You + me = the best valentine story 💌",
+      "Say yes and get an extra hug coupon 🤗",
+      "I made a playlist just for you 🎶",
+      "I'll plan something cute — trust me! 🌸"
+    ];
+
+    // Cycle messages when hovering or after pressing No
+    let msgIndex = 0;
+    let msgTimer = null;
+
+    function startMessageCycle(){
+      if(msgTimer) return;
+      hint.textContent = messages[msgIndex % messages.length];
+      msgTimer = setInterval(()=>{
+        msgIndex++;
+        hint.textContent = messages[msgIndex % messages.length];
+      },1400);
+    }
+    function stopMessageCycle(){
+      if(msgTimer){ clearInterval(msgTimer); msgTimer = null; hint.textContent = "Take your time... but not too long 😇"; }
+    }
+
+    // Background floating hearts for extra cuteness
+    (function createBgHearts(){
+      const container = document.getElementById('bgHearts');
+      const count = 12;
+      for(let i=0;i<count;i++){
+        const s = document.createElement('span');
+        s.textContent = "❤";
+        const left = Math.random()*100;
+        const top = Math.random()*100;
+        const size = 12 + Math.random()*32;
+        s.style.left = left + "%";
+        s.style.top = top + "%";
+        s.style.fontSize = size + "px";
+        s.style.opacity = (0.03 + Math.random()*0.06).toFixed(2);
+        s.style.transform = `rotate(${(Math.random()-0.5)*40}deg)`;
+        container.appendChild(s);
+      }
+    })();
+
+    // Behavior when hovering No: show messages
+    noBtn.addEventListener('mouseenter', ()=> startMessageCycle());
+    noBtn.addEventListener('focus', ()=> startMessageCycle());
+    noBtn.addEventListener('mouseleave', ()=> stopMessageCycle());
+    noBtn.addEventListener('blur', ()=> stopMessageCycle());
+
+    // When No is clicked, start growing the Yes button and "convincing" dialogue
+    let growInterval = null;
+    let growStep = 0;
+    let noClicked = false;
+
+    function startGrowingYes(){
+      if(growInterval) return;
+      noClicked = true;
+      // Disable no button slightly
+      noBtn.disabled = true;
+      noBtn.style.cursor = 'not-allowed';
+      // Start message cycle
+      startMessageCycle();
+      // animate growth over ~1800ms steps
+      growInterval = setInterval(()=>{
+        growStep++;
+        const scale = 1 + growStep * 0.28; // increases quickly
+        yesBtn.style.transform = `scale(${scale})`;
+        yesBtn.style.boxShadow = `0 ${8 + growStep*6}px ${28 + growStep*6}px rgba(150,40,80,${Math.min(0.25, 0.06+growStep*0.03)})`;
+        // make No button move slightly away and fade
+        noBtn.style.transform = `translateY(${ -growStep*6 }px) translateX(${growStep*6}px) scale(${Math.max(0.7, 1 - growStep*0.08)})`;
+        noBtn.style.opacity = `${Math.max(0, 1 - growStep*0.14)}`;
+        // Eventually overlay the no button (make it impossible to click)
+        if(scale >= 3.5 || growStep > 8){
+          clearInterval(growInterval);
+          growInterval = null;
+          // Ensure yes occupies main attention
+          yesBtn.style.transform = 'scale(4)';
+          yesBtn.style.width = '100%';
+          yesBtn.style.padding = '28px 36px';
+          noBtn.style.display = 'none';
+          hint.textContent = "Looks like the universe wants a YES ✨";
+          // keep messages around a little
+          setTimeout(()=> stopMessageCycle(), 2500);
+        }
+      },220);
+    }
+
+    noBtn.addEventListener('click', (e)=>{
+      startGrowingYes();
+    });
+
+    // Accessibility: pressing Enter/Space on No triggers it as well
+    noBtn.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startGrowingYes(); }
+    });
+
+    // Fireworks implementation (simple particle system)
+    const canvas = document.getElementById('fireworksCanvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Particle helpers
+    function rand(min,max){ return Math.random()*(max-min)+min; }
+    class Particle {
+      constructor(x,y, vx,vy, color, life, size){
+        this.x = x; this.y=y; this.vx=vx; this.vy=vy; this.color=color; this.life=life; this.age=0; this.size=size;
+      }
+      update(dt){
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += 80 * dt; // gravity
+        this.vx *= 0.995;
+        this.vy *= 0.995;
+        this.age += dt;
+      }
+      draw(ctx){
+        const t = Math.max(0, 1 - this.age/this.life);
+        ctx.globalAlpha = Math.pow(t,0.9);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.6, this.size * t), 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    let particles = [];
+    let lastTime = performance.now();
+    let running = false;
+    function spawnFirework(x,y){
+      const colors = ['#ff77a9','#ffd166','#ffd1e6','#ff9ab8','#ffd2b8','#ff7bc1','#ff5a8a','#fff1b8'];
+      const hue = colors[Math.floor(Math.random()*colors.length)];
+      const count = 30 + Math.floor(Math.random()*40);
+      for(let i=0;i<count;i++){
+        const angle = Math.random()*Math.PI*2;
+        const speed = rand(120,420);
+        const vx = Math.cos(angle)*speed;
+        const vy = Math.sin(angle)*speed;
+        const size = rand(2,5);
+        const life = rand(1.2,2.1);
+        particles.push(new Particle(x,y,vx,vy, hue, life, size));
+      }
+    }
+
+    function updateFrame(now){
+      const dt = Math.min(0.04, (now-lastTime)/1000);
+      lastTime = now;
+      // clear with slight trail
+      ctx.fillStyle = "rgba(8,6,12,0.18)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      // update & draw
+      for(let i = particles.length-1; i>=0; i--){
+        const p = particles[i];
+        p.update(dt);
+        p.draw(ctx);
+        if(p.age > p.life) particles.splice(i,1);
+      }
+      if(running) requestAnimationFrame(updateFrame);
+    }
+
+    function startFireworks(duration = 6000){
+      running = true;
+      lastTime = performance.now();
+      // initial clears
+      ctx.fillStyle = "rgba(255,250,252,0.0)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      // schedule random bursts
+      const end = Date.now() + duration;
+      function burstLoop(){
+        if(Date.now() > end) {
+          // keep updating until particles clear
+          setTimeout(()=>{ running = particles.length>0; }, 600);
+          return;
+        }
+        // spawn some bursts at random positions near top/mid
+        const x = rand(canvas.width*0.2, canvas.width*0.8);
+        const y = rand(canvas.height*0.12, canvas.height*0.45);
+        spawnFirework(x,y);
+        // occasionally spawn near pointer center
+        setTimeout(burstLoop, rand(220,700));
+      }
+      burstLoop();
+      requestAnimationFrame(updateFrame);
+    }
+
+    // When Yes is clicked: show fireworks and overlay message
+    yesBtn.addEventListener('click', ()=> {
+      // reset some UI changes in case yes is huge
+      yesBtn.style.transform = 'scale(1)';
+      yesBtn.style.width = '';
+      yesBtn.style.padding = '';
+      noBtn.style.display = 'none';
+      hint.textContent = "Yay! 💖";
+      stopMessageCycle();
+
+      // Show overlay message and start fireworks
+      overlayMsg.textContent = "Prepare for the best valentine of your life <3";
+      overlayMsg.style.display = 'block';
+      overlayMsg.style.opacity = '0';
+      overlayMsg.style.transform = 'translateX(-50%) translateY(-8px)';
+      overlayMsg.animate([
+        {opacity:0, transform:'translateX(-50%) translateY(-8px)'},
+        {opacity:1, transform:'translateX(-50%) translateY(0)'}
+      ], {duration:380, easing:'ease-out', fill:'forwards'});
+
+      // play fireworks for 6.5s
+      startFireworks(6500);
+
+      // gentle confetti of hearts from the question card
+      confettiHearts();
+
+      // hide overlay after some time
+      setTimeout(()=> {
+        if(overlayMsg) overlayMsg.style.display = 'none';
+      },8000);
+    });
+
+    // Confetti hearts falling from top center
+    function confettiHearts(){
+      const emitterCount = 38;
+      const conf = [];
+      for(let i=0;i<emitterCount;i++){
+        conf.push({
+          x: window.innerWidth/2 + rand(-120,120),
+          y: -10 + rand(-60,0),
+          vx: rand(-30,30),
+          vy: rand(30,110),
+          rot: rand(-2,2),
+          size: rand(10,22),
+          char: Math.random() > 0.5 ? '💖' : '💘',
+          life: 4 + Math.random()*2,
+          age: 0
+        });
+      }
+      const el = document.createElement('div');
+      el.style.position = 'fixed';
+      el.style.left = '0'; el.style.top = '0';
+      el.style.width='100%'; el.style.height='100%';
+      el.style.pointerEvents='none';
+      el.style.zIndex='2050';
+      document.body.appendChild(el);
+      const particlesEl = conf.map(c=>{
+        const s = document.createElement('div');
+        s.textContent = c.char;
+        s.style.position='absolute';
+        s.style.left=c.x+'px';
+        s.style.top=c.y+'px';
+        s.style.fontSize=c.size+'px';
+        s.style.opacity='1';
+        s.style.transform='translate(-50%,-50%)';
+        el.appendChild(s);
+        return {c,s};
+      });
+      let last = performance.now();
+      function step(now){
+        const dt = Math.min(0.05,(now-last)/1000);
+        last = now;
+        for(let i=particlesEl.length-1;i>=0;i--){
+          const {c,s} = particlesEl[i];
+          c.age += dt;
+          c.vy += 90*dt;
+          c.x += c.vx*dt;
+          c.y += c.vy*dt;
+          c.rot += 0.6*dt;
+          s.style.left = c.x + 'px';
+          s.style.top = c.y + 'px';
+          s.style.transform = `translate(-50%,-50%) rotate(${c.rot}rad)`;
+          s.style.opacity = `${Math.max(0, 1 - c.age / c.life)}`;
+          if(c.age >= c.life || c.y > window.innerHeight + 60){
+            s.remove();
+            particlesEl.splice(i,1);
+          }
+        }
+        if(particlesEl.length > 0) requestAnimationFrame(step);
+        else setTimeout(()=>el.remove(),300);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // initial tiny animation to draw attention
+    (function pulseYes(){
+      yesBtn.animate([
+        {transform:'scale(1)'},
+        {transform:'scale(1.04)'},
+        {transform:'scale(1)'}
+      ], {duration:2200, iterations: Infinity, easing:'ease-in-out'});
+    })();
+  </script>
+</body>
+</html>
